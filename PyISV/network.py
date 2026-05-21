@@ -106,8 +106,6 @@ class Autoencoder(nn.Module):
         
         return embedding 
     def decode(self, embedding):
-        
-        z = self.encoder(embedding)
         z = self.decode_linear(embedding)
         z = torch.reshape(z,(z.shape[0],128,self.flat_dim))
         z = self.decoder(z)

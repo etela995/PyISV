@@ -89,11 +89,11 @@ class Dataset(Dataset):
         self.norm_threshold_inputs = norm_threshold_inputs
         self.norm_threshold_targets = norm_threshold_targets
 
-        self.norm_mode= norm_mode # 'minmax' or 'gaussian'
-        if ((self.norm_mode != "gaussian") and (self.norm_mode != "minmax")):
-            print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n')
-            print('norm_mode must be equal to "minmax" or "gaussian"\n')
-            print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n')
+        self.norm_mode = norm_mode  # 'minmax' or 'gaussian'
+        if self.norm_mode not in ("gaussian", "minmax"):
+            raise ValueError(
+                f'norm_mode must be "minmax" or "gaussian", got {self.norm_mode!r}'
+            )
         
         if (norm_inputs==True):  
             self.inputs = self.set_norm_inputs(inputs)
@@ -187,3 +187,32 @@ class EarlyStopping:
             self.counter += 1  # Increment counter if no improvement
 
         return self.counter >= self.patience
+
+
+def infer_flat_dim(model, sample_input=None):
+    """Return the spatial size to use as ``flat_dim``.
+
+    For :class:`~PyISV.network_flex.FlexibleAutoencoder`, returns the
+    user-chosen ``flat_dim`` (independent of ``input_length``).
+
+    For fixed-geometry 1D autoencoders (e.g. :class:`~PyISV.network.Autoencoder`),
+    runs the encoder and returns ``shape[2]``. For 2D models, returns ``H * W``.
+    """
+    if hasattr(model, "spatial_pool"):
+        return model.flat_dim
+
+    if sample_input is None:
+        raise ValueError(
+            "sample_input is required to infer flat_dim for this model type"
+        )
+
+    was_training = model.training
+    model.eval()
+    try:
+        with torch.no_grad():
+            enc_out = model.encoder(sample_input.float())
+        if enc_out.dim() == 4:
+            return enc_out.shape[2] * enc_out.shape[3]
+        return enc_out.shape[2]
+    finally:
+        model.train(was_training)

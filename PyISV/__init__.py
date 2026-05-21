@@ -1,3 +1,13 @@
-from .features_calc_utils import torch_kde_calc
+from .features_calc_utils import single_kde_calc, triple_kde_calc, torch_kde_calc
 from .network import Autoencoder
-from .train_utils import Dataset,MSELoss,SaveBestModel
+from .network_flex import FlexibleAutoencoder
+from .train_utils import (
+    Dataset,
+    MSELoss,
+    RMSELoss,
+    SaveBestModel,
+    EarlyStopping,
+    infer_flat_dim,
+)
+
+__version__ = "0.1.0"

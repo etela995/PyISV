@@ -27,7 +27,7 @@ if pure_autoencoder == False:
 
 # model parameters
 embed_dim = 2 # bottleneck size
-flat_dim = 1 # geometric parameter of the network, 21 is needed for input vector of 340 numbers
+flat_dim = 1  # must match training; 21 for network_arxiv.py with length 340
 device = 'cpu' # set the device for running the model
 
 # evaluation parameter

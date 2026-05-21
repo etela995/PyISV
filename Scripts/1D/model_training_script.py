@@ -1,12 +1,12 @@
+"""Train a 1D autoencoder. Edit the PARAMETERS section, then run from this directory."""
 import torch
 from torch.utils.data import DataLoader
 from PyISV.network import Autoencoder
-from PyISV.train_utils import Dataset,RMSELoss,MSELoss,SaveBestModel,EarlyStopping
+from PyISV.train_utils import Dataset, RMSELoss, MSELoss, SaveBestModel, EarlyStopping, infer_flat_dim
 from torchsummary import summary
 import numpy as np
 from sklearn.model_selection import train_test_split
 import time
-import matplotlib.pyplot as plt
 
 
 
@@ -15,7 +15,9 @@ batch_size = 64 # batch size
 
 # model parameters
 embed_dim = 2 # bottleneck size
-flat_dim = 5 # geometric parameter of the network, 21 is needed for input vector of 340 numbers
+flat_dim = 1  # bottleneck spatial size; with Autoencoder must match encoder (use infer_flat_dim)
+input_length = 200  # descriptor length (bins); used only with FlexibleAutoencoder
+use_flexible_autoencoder = False  # set True to use FlexibleAutoencoder + input_length
 seed = 7352143264209594346 # manual seed for model initialization
 
 # network training scheme
@@ -65,7 +67,7 @@ input_data = np.load(input_path)
 if pure_autoencoder == False:
     target_data = np.load(target_path)
 else:
-    target_data = np.zeros((len(input_data),3))
+    target_data = input_data
 input_size = [*input_data.shape]
 with open("train_log.txt", "a") as log:
     log.write(f"LOADING DATA\n")
@@ -132,7 +134,7 @@ valid_dataset=Dataset(X_valid, Y_valid, norm_inputs=False, norm_targets=False)
 valid_loader=DataLoader(valid_dataset, shuffle=True, batch_size=batch_size, drop_last=True)
 del dataset
 with open("train_log.txt", "a") as log:
-    log.write('''SHUFFLING TRAINING AND VALIDATION DATASETS AND CREATING BATCHES")
+    log.write('''SHUFFLING TRAINING AND VALIDATION DATASETS AND CREATING BATCHES
 ###################################
 FINAL SUMMARY
 Data fraction used as training set = {0:.2f}
@@ -146,14 +148,38 @@ Validation batches = {5:d}
 len(valid_loader)*batch_size,batch_size,len(train_loader),len(valid_loader))) 
 
 
-model_kwargs = {
-    'embed_dim': embed_dim,
-    'flat_dim': flat_dim
-}
+if use_flexible_autoencoder:
+    from PyISV.network_flex import FlexibleAutoencoder
+    model_kwargs = {
+        'embed_dim': embed_dim,
+        'flat_dim': flat_dim,
+        'input_length': input_length,
+    }
+    if num_channels > 1:
+        model_kwargs['input_channels'] = num_channels
+    ModelClass = FlexibleAutoencoder
+else:
+    model_kwargs = {
+        'embed_dim': embed_dim,
+        'flat_dim': flat_dim,
+    }
+    if num_channels > 1:
+        model_kwargs['input_channels'] = num_channels
+    ModelClass = Autoencoder
+
 torch.manual_seed(seed) # set seed if reproducibility required
-model = Autoencoder(**model_kwargs)
+model = ModelClass(**model_kwargs)
 model.to(device)
-_ = summary(model,(num_channels, input_size[-1]))
+_ = summary(model, (num_channels, input_size[-1]))
+if not use_flexible_autoencoder:
+    suggested_flat_dim = infer_flat_dim(
+        model, torch.zeros(1, num_channels, input_size[-1])
+    )
+    if suggested_flat_dim != flat_dim:
+        print(
+            f"Warning: flat_dim={flat_dim} but encoder output suggests flat_dim={suggested_flat_dim}. "
+            "Update flat_dim or enable use_flexible_autoencoder."
+        )
 
 
 
@@ -291,7 +317,7 @@ for epoch in range(max_num_epochs):
 
     # append data to plot
     # print training stats to file
-    train_log="{0:d} {1:.2f} {2:.9f} {3:9f} {4:1.2e}".format(init_epoch+epoch, elapsed_time, train_loss, valid_loss, current_lr)
+    train_log="{0:d} {1:.2f} {2:.9f} {3:.9f} {4:1.2e}".format(init_epoch+epoch, elapsed_time, train_loss, valid_loss, current_lr)
     with open("train_stats.txt", "a") as f:
         f.write(train_log+'\n')
 

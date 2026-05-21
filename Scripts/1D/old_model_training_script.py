@@ -42,6 +42,7 @@ for _ in range(5000):
 input_data = np.vstack(input_data)
 target_data = np.vstack(target_data)   
 
+save_random_data = False  # set True to write random_inputs.npy / random_targets.npy
 if save_random_data:
     np.save('random_inputs.npy',input_data)
     np.save('random_targets.npy',target_data)

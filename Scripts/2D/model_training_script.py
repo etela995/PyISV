@@ -330,7 +330,7 @@ for epoch in range(max_num_epochs):
 
     # append data to plot
     # print training stats to file
-    train_log="{0:d} {1:.2f} {2:.9f} {3:9f} {4:1.2e}".format(init_epoch+epoch, elapsed_time, train_loss, valid_loss, current_lr)
+    train_log="{0:d} {1:.2f} {2:.9f} {3:.9f} {4:1.2e}".format(init_epoch+epoch, elapsed_time, train_loss, valid_loss, current_lr)
     with open("train_stats.txt", "a") as f:
         f.write(train_log+'\n')
 
