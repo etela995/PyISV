@@ -57,6 +57,7 @@ For **binary** systems with three partial RDFs, use `compute_triple_rdf.py` and 
 | `PyISV/features_calc_utils.py` | KDE-based distance histograms (RDF-style descriptors) from ASE `Atoms` |
 | `PyISV/network.py` | Default **1D** autoencoder: 200 bins per channel, `flat_dim=1`, multi-channel support |
 | `PyISV/network_flex.py` | **1D** autoencoder with **user-set `flat_dim`** at fixed `input_length` (adaptive pool + resize) |
+| `PyISV/network_transformer.py` | **Compact transformer** 1D autoencoder (same API as `FlexibleAutoencoder` for comparisons) |
 | `PyISV/network_arxiv.py` | **1D** architecture from the arXiv paper: 340 bins, `flat_dim=21` |
 | `PyISV/network_2D.py` | **2D** autoencoder for matrix inputs |
 | `PyISV/train_utils.py` | Dataset normalization, losses, checkpointing, early stopping |
@@ -108,6 +109,25 @@ assert recon.shape == x.shape
 ```
 
 In `Scripts/1D/model_training_script.py`, set `use_flexible_autoencoder = True` and `input_length` to your bin count.
+
+### Transformer vs convolutional
+
+For **fixed-length 1D RDFs** (~200 bins), convolutional models are often a strong baseline: they encode local peak/shape patterns with few parameters and train quickly. **Transformers** attend over all bins globally, which can help when long-range patterns across the distance axis matter, but on short sequences they may **not outperform** a tuned conv net unless you have enough data or need global mixing at the bottleneck.
+
+`TransformerAutoencoder` is intentionally **small** (`d_model=64`, 2 encoder + 2 decoder layers) so you can compare fairly:
+
+```python
+from PyISV import FlexibleAutoencoder, TransformerAutoencoder, count_parameters
+
+kw = dict(embed_dim=2, flat_dim=8, input_length=200, input_channels=1)
+conv = FlexibleAutoencoder(**kw)
+tr = TransformerAutoencoder(**kw)
+print(count_parameters(conv), count_parameters(tr))
+```
+
+Swap the model class in `scan_flat_dim_script.py` (same `flat_dims_to_scan` and data pipeline).
+
+To **compare several `flat_dim` values** on the same `.npy` file (with optional resampling to 200 bins), use `Scripts/1D/scan_flat_dim_script.py`. After training, run `Scripts/1D/evaluate_flat_dim_scan_script.py` to print `torchsummary` for each checkpoint and save embedding vectors.
 
 ## Input shapes
 

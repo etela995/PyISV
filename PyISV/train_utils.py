@@ -189,6 +189,47 @@ class EarlyStopping:
         return self.counter >= self.patience
 
 
+def resample_descriptors(data, target_length):
+    """Linearly resample descriptors along the last axis to ``target_length``.
+
+    Parameters
+    ----------
+    data : array-like
+        Shape ``(N, L)`` for single-channel or ``(N, C, L)`` for multi-channel.
+    target_length : int
+        Number of bins after resampling.
+
+    Returns
+    -------
+    numpy.ndarray
+        Same rank as input, with last axis length ``target_length``.
+    """
+    arr = np.asarray(data, dtype=np.float64)
+    if arr.shape[-1] == target_length:
+        return arr
+    if target_length < 2:
+        raise ValueError("target_length must be at least 2")
+    if arr.ndim not in (2, 3):
+        raise ValueError(
+            f"Expected shape (N, L) or (N, C, L), got ndim={arr.ndim}"
+        )
+
+    x_old = np.linspace(0.0, 1.0, arr.shape[-1])
+    x_new = np.linspace(0.0, 1.0, target_length)
+
+    if arr.ndim == 2:
+        out = np.empty((arr.shape[0], target_length), dtype=arr.dtype)
+        for i in range(arr.shape[0]):
+            out[i] = np.interp(x_new, x_old, arr[i])
+        return out
+
+    out = np.empty((arr.shape[0], arr.shape[1], target_length), dtype=arr.dtype)
+    for i in range(arr.shape[0]):
+        for c in range(arr.shape[1]):
+            out[i, c] = np.interp(x_new, x_old, arr[i, c])
+    return out
+
+
 def infer_flat_dim(model, sample_input=None):
     """Return the spatial size to use as ``flat_dim``.
 
@@ -198,7 +239,7 @@ def infer_flat_dim(model, sample_input=None):
     For fixed-geometry 1D autoencoders (e.g. :class:`~PyISV.network.Autoencoder`),
     runs the encoder and returns ``shape[2]``. For 2D models, returns ``H * W``.
     """
-    if hasattr(model, "spatial_pool"):
+    if hasattr(model, "spatial_pool") and hasattr(model, "flat_dim"):
         return model.flat_dim
 
     if sample_input is None:
